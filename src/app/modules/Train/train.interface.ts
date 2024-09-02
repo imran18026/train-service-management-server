@@ -5,9 +5,17 @@ export type TSchedule = {
   departureTime: Date;
   station: Types.ObjectId;
 };
+
+//status enum:
+export enum TrainStatus {
+  STAND = 'stand',
+  RUNNING = 'running',
+}
 export type TTrain = {
   name: string;
   schedule: TSchedule[];
+  status: TrainStatus;
+  lastUpdated: Date;
 };
 
 export interface TrainModel extends Model<TTrain> {

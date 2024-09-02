@@ -1,27 +1,54 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import httpStatus from 'http-status';
+import cron from 'node-cron';
 import QueryBuilder from '../../builder/QueryBuilder';
 import AppError from '../../errors/AppError';
 import { TStation } from '../Station/station.interface';
 import { Station } from '../Station/station.model';
 import { TrainSearchableFields } from './train.constant';
-import { TTrain } from './train.interface';
+import { TrainStatus, TTrain } from './train.interface';
 import { Train } from './train.model';
 
-const createTrainIntoDB = async (payload: TTrain) => {
-  const existingTrain = await Train.findOne({ name: payload.name });
+const updateTrainSchedules = async () => {
+  cron.schedule('5 * * * * ', async () => {
+    const trains = await Train.find({});
+    const currentTime = new Date();
+    for (const train of trains) {
+      const { schedule } = train;
+      for (const i of schedule) {
+        if (currentTime > i.departureTime && currentTime < i.arrivalTime) {
+          train.status = TrainStatus.RUNNING;
+        } else {
+          train.status = TrainStatus.STAND;
+        }
+      }
+      train.lastUpdated = new Date();
+      await train.save();
+    }
+  });
+};
+updateTrainSchedules();
+const createTrainIntoDB = async (payload: Partial<TTrain>) => {
+  const { name, schedule } = payload;
+  const existingTrain = await Train.findOne({ name });
   if (existingTrain) {
     throw new AppError(httpStatus.CONFLICT, 'Train is already exists');
   }
-  //check all station is exist or not
-  const stations = await Station.find({
-    _id: { $in: payload.schedule.map((item) => item.station) },
-  });
-
-  if (stations.length !== payload.schedule.length) {
-    throw new AppError(httpStatus.NOT_FOUND, 'Station not found in schedule');
+  if (schedule) {
+    for (const i of schedule) {
+      const stationExists = await Station.findById(i.station);
+      if (!stationExists) {
+        throw new AppError(
+          httpStatus.NOT_FOUND,
+          `${i.station} Station ID is not found`,
+        );
+      }
+    }
   }
+  payload.lastUpdated = new Date();
+
   const newTrain = await Train.create(payload);
+
   return newTrain;
 };
 

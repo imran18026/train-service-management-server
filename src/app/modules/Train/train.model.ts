@@ -1,5 +1,5 @@
 import { model, Schema } from 'mongoose';
-import { TrainModel, TSchedule, TTrain } from './train.interface';
+import { TrainModel, TrainStatus, TSchedule, TTrain } from './train.interface';
 
 const scheduleSchema = new Schema<TSchedule>(
   {
@@ -32,6 +32,12 @@ const trainSchema = new Schema<TTrain, TrainModel>(
       type: [scheduleSchema],
       required: [true, 'Schedule is required'],
     },
+    status: {
+      type: String,
+      enum: Object.values(TrainStatus),
+      default: TrainStatus.STAND,
+    },
+    lastUpdated: { type: Date, default: Date.now },
   },
 
   {
